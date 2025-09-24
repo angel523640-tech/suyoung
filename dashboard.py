@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 # 페이지 설정
 st.set_page_config(
-    page_title="2025 성장지원 워크샵 교육과정 대시보드",
+    page_title="2025 성장지원 워크샵 대시보드",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -1126,10 +1126,11 @@ def main():
         """
         <div style='text-align: center; color: #888; padding: 20px;'>
             <p>© 2025 mySUNI 성장지원 워크샵 대시보드 | mySUNI 성장지원</p>
-            <p>문의: suyoung@sk.com | 내선: 000-000-0000</p>
+            <p>문의: suyoung.park@sk.com | 내선: 000-000-0000</p>
         </div>
         """, unsafe_allow_html=True
     )
 
 if __name__ == "__main__":
     main()
+
