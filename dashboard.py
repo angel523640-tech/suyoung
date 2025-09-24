@@ -12,7 +12,7 @@ warnings.filterwarnings('ignore')
 
 # 페이지 설정
 st.set_page_config(
-    page_title="2025 교육 프로그램 대시보드",
+    page_title="2025 성장지원 워크샵 교육과정 대시보드",
     page_icon="📚",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -94,7 +94,7 @@ def load_data():
     """엑셀 파일에서 데이터를 로드합니다."""
     try:
         # 파일 경로를 실제 파일 위치로 수정해주세요
-        file_path = 'education_dashboard_template_privacy_safe 1.xlsx'
+        file_path = '대시보드 템플릿.xlsx'
         
         # 각 시트를 DataFrame으로 읽기
         program_info = pd.read_excel(file_path, sheet_name='Program_Info')
@@ -123,26 +123,135 @@ def load_data():
             'instructors': instructors,
             'survey': survey
         }
+    except FileNotFoundError:
+        return None
     except Exception as e:
-        # 오류 발생시 None 반환 (오류 메시지 표시하지 않음)
+        st.error(f"데이터 로드 중 오류가 발생했습니다: {str(e)}")
         return None
 
-# 사이드바 필터 설정 (페이지 선택 제거)
+# 필터 적용 함수
+def apply_filters(data):
+    """필터를 적용하여 데이터를 반환"""
+    filtered_data = data.copy()
+    
+    # session_state에서 필터 값 가져오기
+    if 'filter_program' in st.session_state and st.session_state.filter_program != '전체':
+        prog_id = filtered_data['program_info'][
+            filtered_data['program_info']['program_name'] == st.session_state.filter_program
+        ]['program_id'].values[0]
+        
+        # 각 데이터프레임 필터링
+        filtered_data['program_info'] = filtered_data['program_info'][
+            filtered_data['program_info']['program_id'] == prog_id
+        ]
+        filtered_data['learners'] = filtered_data['learners'][
+            filtered_data['learners']['program_id'] == prog_id
+        ]
+        filtered_data['budget'] = filtered_data['budget'][
+            filtered_data['budget']['program_id'] == prog_id
+        ]
+        filtered_data['instructors'] = filtered_data['instructors'][
+            filtered_data['instructors']['program_id'] == prog_id
+        ]
+        filtered_data['survey'] = filtered_data['survey'][
+            filtered_data['survey']['program_id'] == prog_id
+        ]
+        filtered_data['certification'] = filtered_data['certification'][
+            filtered_data['certification']['program_id'] == prog_id
+        ]
+    
+    # 회사 필터 적용
+    if 'filter_companies' in st.session_state and len(st.session_state.filter_companies) > 0:
+        filtered_data['learners'] = filtered_data['learners'][
+            filtered_data['learners']['company'].isin(st.session_state.filter_companies)
+        ]
+        filtered_data['survey'] = filtered_data['survey'][
+            filtered_data['survey']['company'].isin(st.session_state.filter_companies)
+        ]
+    
+    # 기간 필터 적용
+    if 'filter_months' in st.session_state and len(st.session_state.filter_months) > 0:
+        filtered_data['program_info'] = filtered_data['program_info'][
+            filtered_data['program_info']['program_month'].dt.strftime('%Y-%m').isin(st.session_state.filter_months)
+        ]
+        # 필터링된 프로그램의 ID만 유지
+        valid_program_ids = filtered_data['program_info']['program_id'].unique()
+        filtered_data['learners'] = filtered_data['learners'][
+            filtered_data['learners']['program_id'].isin(valid_program_ids)
+        ]
+        filtered_data['budget'] = filtered_data['budget'][
+            filtered_data['budget']['program_id'].isin(valid_program_ids)
+        ]
+        filtered_data['instructors'] = filtered_data['instructors'][
+            filtered_data['instructors']['program_id'].isin(valid_program_ids)
+        ]
+        filtered_data['survey'] = filtered_data['survey'][
+            filtered_data['survey']['program_id'].isin(valid_program_ids)
+        ]
+        filtered_data['certification'] = filtered_data['certification'][
+            filtered_data['certification']['program_id'].isin(valid_program_ids)
+        ]
+    
+    return filtered_data
+
+# 사이드바 필터 설정
 def setup_sidebar_filters(data):
     """사이드바 필터 설정"""
     st.sidebar.title("🔍 필터 옵션")
     
+    # 필터 초기화 버튼
+    if st.sidebar.button("🔄 필터 초기화", use_container_width=True):
+        st.session_state.filter_program = '전체'
+        st.session_state.filter_companies = []
+        st.session_state.filter_months = []
+        st.rerun()
+    
+    st.sidebar.markdown("---")
+    
     # 프로그램 필터
     programs = ['전체'] + data['program_info']['program_name'].tolist()
-    selected_program = st.sidebar.selectbox("프로그램 선택", programs)
+    selected_program = st.sidebar.selectbox(
+        "프로그램 선택", 
+        programs,
+        key="temp_program",
+        index=programs.index(st.session_state.get('filter_program', '전체'))
+    )
     
     # 회사 필터
     companies = data['learners']['company'].dropna().unique().tolist()
-    selected_companies = st.sidebar.multiselect("회사 선택", companies, default=companies[:5])
+    selected_companies = st.sidebar.multiselect(
+        "회사 선택", 
+        companies,
+        key="temp_companies",
+        default=st.session_state.get('filter_companies', [])
+    )
     
     # 기간 필터
     months = data['program_info']['program_month'].dt.strftime('%Y-%m').unique()
-    selected_months = st.sidebar.multiselect("월 선택", months, default=months)
+    selected_months = st.sidebar.multiselect(
+        "월 선택", 
+        months,
+        key="temp_months",
+        default=st.session_state.get('filter_months', [])
+    )
+    
+    st.sidebar.markdown("---")
+    
+    # 적용 버튼
+    if st.sidebar.button("✅ 필터 적용", type="primary", use_container_width=True):
+        st.session_state.filter_program = selected_program
+        st.session_state.filter_companies = selected_companies
+        st.session_state.filter_months = selected_months
+        st.rerun()
+    
+    # 현재 적용된 필터 표시
+    st.sidebar.markdown("### 📌 적용된 필터")
+    if 'filter_program' in st.session_state and st.session_state.filter_program != '전체':
+        st.sidebar.info(f"프로그램: {st.session_state.filter_program}")
+    if 'filter_companies' in st.session_state and len(st.session_state.filter_companies) > 0:
+        st.sidebar.info(f"회사: {len(st.session_state.filter_companies)}개 선택")
+    if 'filter_months' in st.session_state and len(st.session_state.filter_months) > 0:
+        st.sidebar.info(f"기간: {len(st.session_state.filter_months)}개월 선택")
     
     return selected_program, selected_companies, selected_months
 
@@ -151,12 +260,17 @@ def show_overview(data):
     """전체 현황 대시보드"""
     st.markdown("### 📊 전체 현황 Overview")
     
+    # 데이터가 비어있는지 확인
+    if len(data['program_info']) == 0:
+        st.warning("선택한 필터에 해당하는 데이터가 없습니다.")
+        return
+    
     # KPI 계산
     total_programs = len(data['program_info'])
     total_learners = data['learners'].shape[0]
-    total_budget = data['budget']['actual_budget'].sum() / 1000000  # 백만원 단위
-    total_direct_cost = data['budget']['total_direct_cost'].sum() / 1000000
-    avg_satisfaction = data['survey'][data['survey']['rating'].notna()]['rating'].mean()
+    total_budget = data['budget']['actual_budget'].sum() / 1000000 if len(data['budget']) > 0 else 0
+    total_direct_cost = data['budget']['total_direct_cost'].sum() / 1000000 if len(data['budget']) > 0 else 0
+    avg_satisfaction = data['survey'][data['survey']['rating'].notna()]['rating'].mean() if len(data['survey']) > 0 else 0
     
     # KPI 카드 표시
     col1, col2, col3, col4, col5 = st.columns(5)
@@ -241,16 +355,34 @@ def show_program_details(data, selected_program):
     """프로그램별 상세 분석"""
     st.markdown("### 🎓 프로그램별 상세 분석")
     
-    if selected_program == '전체':
-        programs = data['program_info']['program_name'].tolist()
-        selected_prog_name = st.selectbox("분석할 프로그램 선택", programs)
-    else:
+    # 필터링된 프로그램 목록만 사용
+    if len(data['program_info']) == 0:
+        st.warning("선택한 필터에 해당하는 프로그램이 없습니다.")
+        return
+    
+    programs = data['program_info']['program_name'].tolist()
+    
+    # 필터로 특정 프로그램이 선택된 경우
+    if selected_program != '전체' and selected_program in programs:
         selected_prog_name = selected_program
+    else:
+        # 필터링된 프로그램 목록에서 선택
+        selected_prog_name = st.selectbox("분석할 프로그램 선택", programs)
     
     # 선택된 프로그램 정보 가져오기
-    prog_info = data['program_info'][data['program_info']['program_name'] == selected_prog_name].iloc[0]
+    prog_info = data['program_info'][data['program_info']['program_name'] == selected_prog_name]
+    if len(prog_info) == 0:
+        st.warning("선택한 프로그램의 정보를 찾을 수 없습니다.")
+        return
+    
+    prog_info = prog_info.iloc[0]
     prog_id = prog_info['program_id']
-    prog_budget = data['budget'][data['budget']['program_id'] == prog_id].iloc[0]
+    
+    prog_budget_df = data['budget'][data['budget']['program_id'] == prog_id]
+    if len(prog_budget_df) == 0:
+        st.warning("선택한 프로그램의 예산 정보를 찾을 수 없습니다.")
+        return
+    prog_budget = prog_budget_df.iloc[0]
     
     # 프로그램 정보 카드
     st.markdown(f"#### 📌 {selected_prog_name}")
@@ -820,12 +952,20 @@ def show_satisfaction_analysis(data):
 
 # 메인 함수
 def main():
+    # 세션 상태 초기화
+    if 'filter_program' not in st.session_state:
+        st.session_state.filter_program = '전체'
+    if 'filter_companies' not in st.session_state:
+        st.session_state.filter_companies = []
+    if 'filter_months' not in st.session_state:
+        st.session_state.filter_months = []
+    
     # 데이터 로드
     data = load_data()
     
     if data is None:
         # 파일을 찾을 수 없을 때 바로 업로드 인터페이스 제공 (오류 메시지 없이)
-        st.title("📚 2025년 교육 프로그램 대시보드")
+        st.title("📚 2025년 성장지원 워크샵 교육과정 대시보드")
         st.markdown("### 📁 데이터 파일 업로드")
         st.info("교육 데이터가 포함된 엑셀 파일을 업로드해주세요.")
         
@@ -864,10 +1004,19 @@ def main():
             return
     
     # 타이틀
-    st.title("📚 2025년 교육 프로그램 대시보드")
+    st.title("📚 2025년 성장지원 워크샵 교육과정 대시보드")
     
-    # 사이드바 필터 설정
+    # 사이드바 필터 설정 (원본 데이터 사용)
     selected_program, selected_companies, selected_months = setup_sidebar_filters(data)
+    
+    # 필터가 적용된 데이터 가져오기
+    filtered_data = apply_filters(data)
+    
+    # 필터 적용 알림
+    if (st.session_state.get('filter_program', '전체') != '전체' or 
+        len(st.session_state.get('filter_companies', [])) > 0 or 
+        len(st.session_state.get('filter_months', [])) > 0):
+        st.info("🔍 필터가 적용되었습니다. 좌측 사이드바에서 필터를 변경할 수 있습니다.")
     
     # 탭 생성 (페이지 선택을 탭으로 변경)
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
@@ -878,29 +1027,44 @@ def main():
         "⭐ 만족도 분석"
     ])
     
-    # 각 탭에 해당 페이지 내용 표시
+    # 각 탭에 해당 페이지 내용 표시 (필터링된 데이터 사용)
     with tab1:
-        show_overview(data)
+        if len(filtered_data['program_info']) > 0:
+            show_overview(filtered_data)
+        else:
+            st.warning("⚠️ 선택한 필터 조건에 해당하는 데이터가 없습니다.")
     
     with tab2:
-        show_program_details(data, selected_program)
+        if len(filtered_data['program_info']) > 0:
+            show_program_details(filtered_data, st.session_state.get('filter_program', '전체'))
+        else:
+            st.warning("⚠️ 선택한 필터 조건에 해당하는 프로그램이 없습니다.")
     
     with tab3:
-        show_learner_analysis(data)
+        if len(filtered_data['learners']) > 0:
+            show_learner_analysis(filtered_data)
+        else:
+            st.warning("⚠️ 선택한 필터 조건에 해당하는 수강생이 없습니다.")
     
     with tab4:
-        show_budget_analysis(data)
+        if len(filtered_data['budget']) > 0:
+            show_budget_analysis(filtered_data)
+        else:
+            st.warning("⚠️ 선택한 필터 조건에 해당하는 예산 정보가 없습니다.")
     
     with tab5:
-        show_satisfaction_analysis(data)
+        if len(filtered_data['survey']) > 0:
+            show_satisfaction_analysis(filtered_data)
+        else:
+            st.warning("⚠️ 선택한 필터 조건에 해당하는 만족도 데이터가 없습니다.")
     
     # 푸터
     st.markdown("---")
     st.markdown(
         """
         <div style='text-align: center; color: #888; padding: 20px;'>
-            <p>© 2025 교육 프로그램 대시보드 | SK Group HRD Team</p>
-            <p>문의: education@sk.com | 내선: 1234</p>
+            <p>© 2025 mySUNI 성장지원 워크샵 대시보드 | mySUNI 성장지원</p>
+            <p>문의: suyoung@sk.com | 내선: 000-000-0000</p>
         </div>
         """, unsafe_allow_html=True
     )
