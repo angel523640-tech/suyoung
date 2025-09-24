@@ -93,16 +93,68 @@ st.markdown("""
 def load_data():
     """엑셀 파일에서 데이터를 로드합니다."""
     try:
-        # 파일 경로를 실제 파일 위치로 수정해주세요
-        file_path = '대시보드 템플릿.xlsx'
+        import os
+        import sys
         
-        # 각 시트를 DataFrame으로 읽기
-        program_info = pd.read_excel(file_path, sheet_name='Program_Info')
-        learners = pd.read_excel(file_path, sheet_name='Learners')
-        certification = pd.read_excel(file_path, sheet_name='Certification')
-        budget = pd.read_excel(file_path, sheet_name='Budget')
-        instructors = pd.read_excel(file_path, sheet_name='Instructors')
-        survey = pd.read_excel(file_path, sheet_name='Survey')
+        # Streamlit Cloud 환경 확인
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # 파일명 (영문으로 변경 권장)
+        file_names = [
+            'dashboard_template.xlsx',  # 영문 파일명 (권장)
+            '대시보드 템플릿.xlsx',  # 한글 파일명 (기존)
+        ]
+        
+        file_path = None
+        for filename in file_names:
+            # 여러 경로 시도
+            paths_to_try = [
+                filename,  # 현재 디렉토리
+                os.path.join(current_dir, filename),  # 스크립트 디렉토리
+                os.path.join(os.getcwd(), filename),  # 작업 디렉토리
+            ]
+            
+            for path in paths_to_try:
+                if os.path.exists(path) and os.path.isfile(path):
+                    file_path = path
+                    break
+            
+            if file_path:
+                break
+        
+        if file_path is None:
+            # 디버깅 정보 표시
+            st.error("⚠️ 엑셀 파일을 찾을 수 없습니다.")
+            st.info("💡 다음 파일명 중 하나가 GitHub 저장소에 있는지 확인하세요:")
+            for name in file_names:
+                st.info(f"   - {name}")
+            
+            # 현재 디렉토리 파일 목록 표시 (디버깅용)
+            with st.expander("🔍 디버깅 정보 (클릭하여 확인)"):
+                st.write(f"현재 디렉토리: {os.getcwd()}")
+                st.write(f"스크립트 디렉토리: {current_dir if 'current_dir' in locals() else 'N/A'}")
+                st.write("디렉토리 내 파일 목록:")
+                try:
+                    files = os.listdir(os.getcwd())
+                    for f in files:
+                        if f.endswith('.xlsx'):
+                            st.write(f"   ✓ {f}")
+                        else:
+                            st.write(f"   - {f}")
+                except Exception as e:
+                    st.write(f"   오류: {str(e)}")
+            
+            return None
+        
+        # 파일 읽기
+        with st.spinner(f'📊 데이터 로드 중... ({os.path.basename(file_path)})'):
+            # 각 시트를 DataFrame으로 읽기
+            program_info = pd.read_excel(file_path, sheet_name='Program_Info')
+            learners = pd.read_excel(file_path, sheet_name='Learners')
+            certification = pd.read_excel(file_path, sheet_name='Certification')
+            budget = pd.read_excel(file_path, sheet_name='Budget')
+            instructors = pd.read_excel(file_path, sheet_name='Instructors')
+            survey = pd.read_excel(file_path, sheet_name='Survey')
         
         # 날짜 형식 변환
         program_info['program_month'] = pd.to_datetime(program_info['program_month'])
@@ -123,10 +175,20 @@ def load_data():
             'instructors': instructors,
             'survey': survey
         }
-    except FileNotFoundError:
-        return None
+        
     except Exception as e:
-        st.error(f"데이터 로드 중 오류가 발생했습니다: {str(e)}")
+        st.error(f"⚠️ 데이터 로드 중 오류가 발생했습니다.")
+        with st.expander("🔍 오류 상세 정보"):
+            st.error(str(e))
+            
+            # 엑셀 파일 시트명 확인 시도
+            if 'file_path' in locals() and file_path:
+                try:
+                    xl_file = pd.ExcelFile(file_path)
+                    st.info(f"엑셀 파일 시트 목록: {xl_file.sheet_names}")
+                except Exception as sheet_error:
+                    st.error(f"시트 정보 확인 실패: {str(sheet_error)}")
+        
         return None
 
 # 필터 적용 함수
