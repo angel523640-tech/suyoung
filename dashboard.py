@@ -682,30 +682,35 @@ def show_budget_analysis(data):
         st.dataframe(display_efficiency, use_container_width=True, hide_index=True)
     
     # 전체 비용 구조
-    st.markdown("#### 📈 전체 비용 구조 분석")
-    
-    # Stacked bar chart
-    fig3 = go.Figure()
-    
-    programs = budget_comparison['program_name'].unique()
-    budget_values = []
-    direct_values = []
-    
-    for prog in programs:
-        prog_data = budget_comparison[budget_comparison['program_name'] == prog]
-        budget_values.append(prog_data['actual_budget'].values[0] / 1000000)
-        direct_values.append(prog_data['total_direct_cost'].values[0] / 1000000)
-    
-    fig3.add_trace(go.Bar(name='예산', x=programs, y=budget_values,
-                         marker_color='#ea002c'))
-    fig3.add_trace(go.Bar(name='직접비', x=programs, y=direct_values,
-                         marker_color='#ffa500'))
-    
-    fig3.update_layout(barmode='stack',
-                      title='프로그램별 총 비용 구조 (백만원)',
-                      yaxis_title='금액 (백만원)',
-                      height=400)
-    st.plotly_chart(fig3, use_container_width=True)
+  st.markdown("#### 📈 예산 항목별 분포 상세")
+
+# Stacked bar chart
+fig3 = go.Figure()
+
+programs = budget_comparison['program_name'].unique()
+dev_cost_values = []
+instructor_fee_values = []
+reserve_fund_values = []
+
+for prog in programs:
+    prog_data = budget_comparison[budget_comparison['program_name'] == prog]
+    dev_cost_values.append(prog_data['dev_cost'].values[0] / 1000000)
+    instructor_fee_values.append(prog_data['instructor_fee'].values[0] / 1000000)
+    reserve_fund_values.append(prog_data['reserve_fund'].values[0] / 1000000)
+
+# 3개의 항목으로 구성
+fig3.add_trace(go.Bar(name='개발비', x=programs, y=dev_cost_values,
+                     marker_color='#ea002c'))
+fig3.add_trace(go.Bar(name='강사료', x=programs, y=instructor_fee_values,
+                     marker_color='#ff5800'))
+fig3.add_trace(go.Bar(name='예비비', x=programs, y=reserve_fund_values,
+                     marker_color='#ffa500'))
+
+fig3.update_layout(barmode='stack',
+                  title='프로그램별 예산 항목별 분포 상세 (백만원)',
+                  yaxis_title='금액 (백만원)',
+                  height=400)
+st.plotly_chart(fig3, use_container_width=True)
     
     # 강사료 상세 분석
     st.markdown("#### 👨‍🏫 강사료 분석")
@@ -1133,6 +1138,7 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
 
