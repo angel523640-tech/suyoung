@@ -377,13 +377,13 @@ def show_overview(data):
         st.plotly_chart(fig1, use_container_width=True)
     
     with col2:
-        # 직무분야별 프로그램 수 (수정: 9개 직무 고정, 프로그램 수로 변경)
-        job_categories = ['전략', '사업개발', '재무', 'HR', '마케팅', '법무', 'IP', '구매/SCM', '일하는 방식']
+        # 직무분야별 프로그램 수 (수정: 11개 직무 고정, 프로그램 수로 변경)
+        job_categories = ['전략', '사업개발', '재무', 'HR', '마케팅', 'Sales', '법무', 'IP', '구매/SCM', 'SVESG', '일하는 방식']
         
         # 실제 데이터에서 직무별 프로그램 수 계산
         job_programs = data['program_info'].groupby('job_category').size().reset_index(name='프로그램 수')
         
-        # 9개 카테고리 데이터프레임 생성
+        # 11개 카테고리 데이터프레임 생성
         job_df = pd.DataFrame({'job_category': job_categories})
         job_df = job_df.merge(job_programs, on='job_category', how='left')
         job_df['프로그램 수'] = job_df['프로그램 수'].fillna(0)
@@ -1133,5 +1133,6 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
 
