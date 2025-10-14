@@ -160,7 +160,7 @@ def load_data():
         program_info['program_month'] = pd.to_datetime(program_info['program_month'])
         
         # 예산 계산 추가
-        budget['actual_budget'] = budget['dev_cost'] + budget['instructor_fee'] + budget['reserve_fund']
+        budget['actual_budget'] = budget['total_budget']
         
         # 직접비 총액 계산
         for idx, row in budget.iterrows():
@@ -1133,4 +1133,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
